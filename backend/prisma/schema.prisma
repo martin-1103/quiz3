@@ -1,0 +1,346 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  emailVerified     Boolean  @default(false)
+  name              String?
+  passwordHash      String   @map("password_hash")
+  role              UserRole @default(USER)
+  avatar            String?
+  twoFactorEnabled  Boolean  @default(false) @map("two_factor_enabled")
+  twoFactorSecret   String?  @map("two_factor_secret")
+  lastLoginAt       DateTime? @map("last_login_at")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  questionBanks     QuestionBank[]
+  quizzes           Quiz[]
+  quizSessions      QuizSession[]
+  aiPrompts         AiPrompt[]
+  securityLogs      SecurityLog[]
+
+  @@map("users")
+}
+
+model QuestionBank {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean  @default(false) @map("is_public")
+  userId      String   @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories  Category[]
+  questions   Question[]
+  tags        QuestionTag[]
+
+  @@map("question_banks")
+}
+
+model Category {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?      @map("parent_id")
+  level       CategoryLevel @default(SUBJECT)
+  color       String       @default("#3B82F6")
+  icon        String?
+  isActive    Boolean      @default(true) @map("is_active")
+  sortOrder   Int          @default(0) @map("sort_order")
+  userId      String       @map("user_id")
+  questionBankId String     @map("question_bank_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionBank QuestionBank @relation(fields: [questionBankId], references: [id], onDelete: Cascade)
+  parent      Category?    @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[]   @relation("CategoryHierarchy")
+  questions   Question[]
+
+  @@map("categories")
+}
+
+model Question {
+  id              String          @id @default(cuid())
+  questionBankId  String          @map("question_bank_id")
+  categoryId      String?         @map("category_id")
+  type            QuestionType
+  questionText    String          @map("question_text")
+  maxPoints       Int             @default(1) @map("max_points")
+  difficulty      DifficultyLevel @default(MEDIUM)
+  timeLimit       Int?            @map("time_limit") // in seconds
+  explanation     String?         @db.Text
+  idealAnswer     String?         @db.Text @map("ideal_answer")
+  aiGenerated     Boolean         @default(false) @map("ai_generated")
+  aiPrompt        String?         @db.Text @map("ai_prompt")
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  questionBank    QuestionBank    @relation(fields: [questionBankId], references: [id], onDelete: Cascade)
+  category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  options         Option[]
+  tags            QuestionTag[]
+  quizQuestions   QuizQuestion[]
+
+  @@map("questions")
+}
+
+model Option {
+  id          String @id @default(cuid())
+  questionId  String @map("question_id")
+  optionText  String @map("option_text")
+  points      Int    @default(0)
+  isCorrect   Boolean @default(false) @map("is_correct")
+  explanation String? @db.Text
+  order       Int    @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("options")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#6B7280")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions QuestionTag[]
+
+  @@map("tags")
+}
+
+model QuestionTag {
+  id         String @id @default(cuid())
+  questionId String @map("question_id")
+  tagId      String @map("tag_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, tagId])
+  @@map("question_tags")
+}
+
+model Quiz {
+  id                String    @id @default(cuid())
+  title             String
+  description       String?   @db.Text
+  userId            String    @map("user_id")
+  timeLimit         Int?      @map("time_limit") // in seconds
+  maxAttempts       Int       @default(1) @map("max_attempts")
+  allowRetake       Boolean   @default(false) @map("allow_retake")
+  shuffleOptions    Boolean   @default(false) @map("shuffle_options")
+  shuffleQuestions  Boolean   @default(false) @map("shuffle_questions")
+  showScore         Boolean   @default(false) @map("show_score")
+  showCorrectAnswers Boolean  @default(false) @map("show_correct_answers")
+  enableAntiCopy    Boolean   @default(true) @map("enable_anti_copy")
+  accessCode        String?   @map("access_code")
+  isPublic          Boolean   @default(false) @map("is_public")
+  isActive          Boolean   @default(true) @map("is_active")
+  publishedAt       DateTime? @map("published_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions         QuizQuestion[]
+  sessions          QuizSession[]
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id        String   @id @default(cuid())
+  quizId    String   @map("quiz_id")
+  questionId String  @map("question_id")
+  order     Int      @default(0)
+  points    Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question  Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, questionId])
+  @@map("quiz_questions")
+}
+
+model QuizSession {
+  id           String    @id @default(cuid())
+  quizId       String    @map("quiz_id")
+  userId       String    @map("user_id")
+  sessionToken String    @unique @map("session_token")
+  startedAt    DateTime  @default(now()) @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  timeSpent    Int       @default(0) @map("time_spent") // in seconds
+  score        Int?
+  maxScore     Int?
+  attempt      Int       @default(1)
+  ipAddress    String    @map("ip_address")
+  userAgent    String    @map("user_agent")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  quiz         Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers      Answer[]
+  securityEvents SecurityEvent[]
+
+  @@map("quiz_sessions")
+}
+
+model Answer {
+  id             String    @id @default(cuid())
+  sessionId      String    @map("session_id")
+  questionId     String    @map("question_id")
+  selectedOptionId String?  @map("selected_option_id")
+  textAnswer     String?   @db.Text @map("text_answer")
+  earnedPoints   Int       @default(0) @map("earned_points")
+  timeSpent      Int       @default(0) @map("time_spent") // in seconds
+  answeredAt     DateTime  @default(now()) @map("answered_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  session        QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("answers")
+}
+
+model AiPrompt {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  systemPrompt  String   @db.Text @map("system_prompt")
+  category      String
+  isTemplate    Boolean  @default(false) @map("is_template")
+  userId        String   @map("user_id")
+  usageCount    Int      @default(0) @map("usage_count")
+  averageRating Float    @default(0) @map("average_rating")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_prompts")
+}
+
+model SecurityLog {
+  id           String        @id @default(cuid())
+  userId       String?       @map("user_id")
+  sessionId    String?       @map("session_id")
+  eventType    SecurityEventType @map("event_type")
+  description  String        @db.Text
+  ipAddress    String        @map("ip_address")
+  userAgent    String        @map("user_agent")
+  severity     SecuritySeverity @default(LOW)
+  metadata     Json?         // Additional event-specific data
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  session      QuizSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@map("security_logs")
+}
+
+model SecurityEvent {
+  id           String        @id @default(cuid())
+  sessionId    String        @map("session_id")
+  eventType    SecurityEventType @map("event_type")
+  description  String        @db.Text
+  data         Json?         // Event-specific data
+  timestamp    DateTime      @default(now())
+
+  // Relations
+  session      QuizSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("security_events")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  FILL_BLANK
+  ESSAY
+  MATCHING
+  ORDERING
+}
+
+enum DifficultyLevel {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+enum CategoryLevel {
+  SUBJECT
+  TOPIC
+  SUBTOPIC
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  COPY_ATTEMPT
+  RIGHT_CLICK_ATTEMPT
+  DEV_TOOLS_DETECTED
+  TAB_SWITCH
+  WINDOW_BLUR
+  PRINT_ATTEMPT
+  SCREENSHOT_ATTEMPT
+  KEYBOARD_SHORTCUT
+  PASTE_ATTEMPT
+  SELECT_TEXT_ATTEMPT
+  SUSPICIOUS_ACTIVITY
+}
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
