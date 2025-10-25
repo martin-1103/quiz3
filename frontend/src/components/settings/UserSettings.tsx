@@ -488,7 +488,7 @@ export function UserSettings() {
                   min="5"
                   max="480"
                 />
-                <p className="text-xs text-gray-500">How long until you're automatically logged out</p>
+                <p className="text-xs text-gray-500">How long until you&apos;re automatically logged out</p>
               </div>
 
               <Button onClick={updateSettings} disabled={isLoading}>

@@ -31,6 +31,8 @@ model User {
   quizSessions      QuizSession[]
   aiPrompts         AiPrompt[]
   securityLogs      SecurityLog[]
+  categories        Category[]
+  tags              Tag[]
 
   @@map("users")
 }
@@ -48,7 +50,6 @@ model QuestionBank {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   categories  Category[]
   questions   Question[]
-  tags        QuestionTag[]
 
   @@map("question_banks")
 }
@@ -218,6 +219,7 @@ model QuizSession {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   answers      Answer[]
   securityEvents SecurityEvent[]
+  securityLogs SecurityLog[]
 
   @@map("quiz_sessions")
 }

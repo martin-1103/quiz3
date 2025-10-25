@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ApiResponse, AuthResponse } from '@/types';
+import { ApiResponse, AuthResponse } from '../../types';
+import { apiClient } from '../../lib/api-client';
 
 interface RegisterFormProps {
   onSuccess?: (user: AuthResponse) => void;
@@ -33,26 +34,13 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     }
 
     try {
-      const response = await fetch('/api/v1/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, name }),
-      });
+      const response = await apiClient.register(email, password, name);
 
-      const data: ApiResponse<AuthResponse> = await response.json();
-
-      if (data.success && data.data) {
-        // Store tokens
-        localStorage.setItem('accessToken', data.data.accessToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-
-        onSuccess?.(data.data);
+      if (response.success && response.data) {
+        onSuccess?.(response.data);
         router.push('/dashboard');
       } else {
-        setError(data.error || 'Registration failed');
+        setError(response.error || 'Registration failed');
       }
     } catch (error) {
       setError('Network error. Please try again.');

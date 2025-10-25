@@ -1,13 +1,24 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-import { ApiResponse, AuthResponse, User, LoginRequest, RegisterRequest } from '@/types';
+import { PrismaClient, User } from '@prisma/client';
+import { ApiResponse, AuthResponse, UserProfile, LoginRequest, RegisterRequest } from '@/types';
 import { asyncHandler, CustomError } from '@/middleware/errorHandler';
 import { validationSchemas } from '@/utils/validation';
 import { logger } from '@/utils/logger';
 
 const prisma = new PrismaClient();
+
+// Helper function to convert Prisma User to UserProfile
+const toUserProfile = (user: Partial<User> & { id: string; email: string; role: string; createdAt: Date; updatedAt: Date }): UserProfile => ({
+  id: user.id,
+  email: user.email,
+  name: user.name || null,
+  role: user.role,
+  avatar: user.avatar || null,
+  createdAt: user.createdAt.toISOString(),
+  updatedAt: user.updatedAt.toISOString(),
+});
 
 export class AuthController {
   register = asyncHandler(async (req: Request, res: Response) => {
@@ -49,9 +60,10 @@ export class AuthController {
     const response: ApiResponse<AuthResponse> = {
       success: true,
       data: {
-        user,
+        user: toUserProfile(user),
         accessToken,
         refreshToken,
+        expiresIn: 15 * 60, // 15 minutes in seconds
       },
       message: 'User registered successfully',
       timestamp: new Date().toISOString(),
@@ -95,16 +107,10 @@ export class AuthController {
     const response: ApiResponse<AuthResponse> = {
       success: true,
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        },
+        user: toUserProfile(user),
         accessToken,
         refreshToken,
+        expiresIn: 15 * 60, // 15 minutes in seconds
       },
       message: 'Login successful',
       timestamp: new Date().toISOString(),
@@ -135,7 +141,7 @@ export class AuthController {
         },
       });
 
-      if (!user || !user.isActive) {
+      if (!user) {
         throw new CustomError('Invalid refresh token', 401);
       }
 
@@ -187,9 +193,9 @@ export class AuthController {
       throw new CustomError('User not found', 404);
     }
 
-    const response: ApiResponse<User> = {
+    const response: ApiResponse<UserProfile> = {
       success: true,
-      data: user,
+      data: toUserProfile(user),
       timestamp: new Date().toISOString(),
     };
 
@@ -215,9 +221,9 @@ export class AuthController {
       },
     });
 
-    const response: ApiResponse<User> = {
+    const response: ApiResponse<UserProfile> = {
       success: true,
-      data: user,
+      data: toUserProfile(user),
       message: 'Profile updated successfully',
       timestamp: new Date().toISOString(),
     };
@@ -332,14 +338,21 @@ export class AuthController {
   });
 
   private generateTokens(user: any): { accessToken: string; refreshToken: string } {
+    const jwtSecret = process.env.JWT_SECRET;
+    const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+    
+    if (!jwtSecret || !jwtRefreshSecret) {
+      throw new Error('JWT secrets not configured');
+    }
+
     const accessToken = jwt.sign(
       {
         userId: user.id,
         email: user.email,
         role: user.role,
       },
-      process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+      jwtSecret,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' } as jwt.SignOptions
     );
 
     const refreshToken = jwt.sign(
@@ -348,8 +361,8 @@ export class AuthController {
         email: user.email,
         role: user.role,
       },
-      process.env.JWT_REFRESH_SECRET!,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+      jwtRefreshSecret,
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' } as jwt.SignOptions
     );
 
     return { accessToken, refreshToken };

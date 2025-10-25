@@ -42,7 +42,7 @@ export const aiLimiter = rateLimit({
 });
 
 // Security middleware for general security
-export const securityMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const securityMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   // Add security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -76,7 +76,8 @@ export const securityMiddleware = (req: Request, res: Response, next: NextFuncti
       timestamp: new Date().toISOString(),
     };
     
-    return res.status(400).json(response);
+    res.status(400).json(response);
+    return;
   }
 
   // Validate Content-Type for POST/PUT requests
@@ -90,14 +91,15 @@ export const securityMiddleware = (req: Request, res: Response, next: NextFuncti
       timestamp: new Date().toISOString(),
     };
     
-    return res.status(400).json(response);
+    res.status(400).json(response);
+    return;
   }
 
   next();
 };
 
 // CORS middleware
-export const corsMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const corsMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
   const origin = req.get('Origin');
 
@@ -111,14 +113,15 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
   next();
 };
 
 // Input validation middleware
-export const validateInput = (req: Request, res: Response, next: NextFunction) => {
+export const validateInput = (req: Request, res: Response, next: NextFunction): void => {
   // Check for oversized requests
   const contentLength = req.get('Content-Length');
   if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) { // 10MB limit
@@ -129,7 +132,8 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
       timestamp: new Date().toISOString(),
     };
     
-    return res.status(413).json(response);
+    res.status(413).json(response);
+    return;
   }
 
   // Validate JSON body for relevant methods
@@ -148,7 +152,8 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
         timestamp: new Date().toISOString(),
       };
       
-      return res.status(400).json(response);
+      res.status(400).json(response);
+    return;
     }
   }
 

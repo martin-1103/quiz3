@@ -22,7 +22,7 @@ export const authenticateToken = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
@@ -34,7 +34,8 @@ export const authenticateToken = async (
         message: 'Please provide a valid access token',
         timestamp: new Date().toISOString(),
       };
-      return res.status(401).json(response);
+      res.status(401).json(response);
+      return;
     }
 
     const jwtSecret = process.env.JWT_SECRET;
@@ -68,12 +69,13 @@ export const authenticateToken = async (
       timestamp: new Date().toISOString(),
     };
     
-    return res.status(401).json(response);
+    res.status(401).json(response);
+    return;
   }
 };
 
 export const requireRole = (roles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       const response: ApiResponse = {
         success: false,
@@ -81,7 +83,8 @@ export const requireRole = (roles: string[]) => {
         message: 'Please login to access this resource',
         timestamp: new Date().toISOString(),
       };
-      return res.status(401).json(response);
+      res.status(401).json(response);
+      return;
     }
 
     if (!roles.includes(req.user.role)) {
@@ -91,7 +94,8 @@ export const requireRole = (roles: string[]) => {
         message: 'You do not have permission to access this resource',
         timestamp: new Date().toISOString(),
       };
-      return res.status(403).json(response);
+      res.status(403).json(response);
+      return;
     }
 
     next();
@@ -102,7 +106,7 @@ export const optionalAuth = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];

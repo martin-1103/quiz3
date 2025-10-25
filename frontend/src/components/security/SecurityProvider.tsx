@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { SecurityEventType } from '@/types';
+// Define SecurityEventType locally to avoid import issues
+type SecurityEventType = 
+  | 'COPY_ATTEMPT'
+  | 'PASTE_ATTEMPT'
+  | 'RIGHT_CLICK'
+  | 'TAB_SWITCH'
+  | 'SCREENSHOT_ATTEMPT'
+  | 'DEV_TOOLS_OPEN'
+  | 'KEYBOARD_SHORTCUT'
+  | 'FULLSCREEN_EXIT'
+  | 'FOCUS_LOST';
 
 interface SecurityProviderProps {
   children: React.ReactNode;
@@ -49,25 +59,25 @@ export function SecurityProvider({
 
     const preventSelection = (e: Event) => {
       e.preventDefault();
-      logSecurityEvent(SecurityEventType.SELECT_TEXT_ATTEMPT);
+      logSecurityEvent('COPY_ATTEMPT');
       return false;
     };
 
     const preventCopy = (e: ClipboardEvent) => {
       e.preventDefault();
-      logSecurityEvent(SecurityEventType.COPY_ATTEMPT);
+      logSecurityEvent('COPY_ATTEMPT');
       return false;
     };
 
     const preventPaste = (e: ClipboardEvent) => {
       e.preventDefault();
-      logSecurityEvent(SecurityEventType.PASTE_ATTEMPT);
+      logSecurityEvent('PASTE_ATTEMPT');
       return false;
     };
 
     const preventContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      logSecurityEvent(SecurityEventType.RIGHT_CLICK_ATTEMPT);
+      logSecurityEvent('RIGHT_CLICK');
       return false;
     };
 
@@ -77,27 +87,27 @@ export function SecurityProvider({
           (e.key === 'c' || e.key === 'v' || e.key === 'x' || 
            e.key === 'a' || e.key === 's' || e.key === 'p')) {
         e.preventDefault();
-        logSecurityEvent(SecurityEventType.KEYBOARD_SHORTCUT, { key: e.key });
+        logSecurityEvent('KEYBOARD_SHORTCUT', { key: e.key });
         return false;
       }
 
       // Prevent F12 (developer tools)
       if (e.key === 'F12') {
         e.preventDefault();
-        logSecurityEvent(SecurityEventType.DEV_TOOLS_DETECTED);
+        logSecurityEvent('DEV_TOOLS_OPEN');
         return false;
       }
 
       // Prevent Ctrl+Shift+I (developer tools)
       if (e.ctrlKey && e.shiftKey && e.key === 'I') {
         e.preventDefault();
-        logSecurityEvent(SecurityEventType.DEV_TOOLS_DETECTED);
+        logSecurityEvent('DEV_TOOLS_OPEN');
         return false;
       }
     };
 
     const preventPrint = () => {
-      logSecurityEvent(SecurityEventType.PRINT_ATTEMPT);
+      logSecurityEvent('SCREENSHOT_ATTEMPT');
       return false;
     };
 
@@ -151,9 +161,9 @@ export function SecurityProvider({
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        logSecurityEvent(SecurityEventType.TAB_SWITCH);
+        logSecurityEvent('TAB_SWITCH');
         visibilityTimer.current = setTimeout(() => {
-          logSecurityEvent(SecurityEventType.SUSPICIOUS_ACTIVITY, {
+          logSecurityEvent('TAB_SWITCH', {
             message: 'Tab switched for extended time'
           });
         }, 5000); // Log suspicious activity if tab is hidden for more than 5 seconds
@@ -165,9 +175,9 @@ export function SecurityProvider({
     };
 
     const handleWindowBlur = () => {
-      logSecurityEvent(SecurityEventType.WINDOW_BLUR);
+      logSecurityEvent('FOCUS_LOST');
       focusTimer.current = setTimeout(() => {
-        logSecurityEvent(SecurityEventType.SUSPICIOUS_ACTIVITY, {
+        logSecurityEvent('FOCUS_LOST', {
           message: 'Window lost focus for extended time'
         });
       }, 3000); // Log suspicious activity if window loses focus for more than 3 seconds
@@ -208,7 +218,7 @@ export function SecurityProvider({
           window.outerWidth - window.innerWidth > threshold) {
         if (!devtools.open) {
           devtools.open = true;
-          logSecurityEvent(SecurityEventType.DEV_TOOLS_DETECTED, {
+          logSecurityEvent('DEV_TOOLS_OPEN', {
             message: 'Developer tools opened'
           });
         }
@@ -238,7 +248,7 @@ export function SecurityProvider({
           (e.metaKey && e.shiftKey && e.key === '4') || // Cmd+Shift+4 (Mac)
           (e.metaKey && e.shiftKey && e.key === '5')) { // Cmd+Shift+5 (Mac)
         e.preventDefault();
-        logSecurityEvent(SecurityEventType.SCREENSHOT_ATTEMPT);
+        logSecurityEvent('SCREENSHOT_ATTEMPT');
         return false;
       }
     };

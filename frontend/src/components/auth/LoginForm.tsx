@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ApiResponse, AuthResponse } from '@/types';
+import { ApiResponse, AuthResponse } from '../../types';
+import { apiClient } from '../../lib/api-client';
 
 interface LoginFormProps {
   onSuccess?: (user: AuthResponse) => void;
@@ -25,28 +26,19 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setError('');
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await apiClient.login(email, password);
+      console.log('Login response:', response);
 
-      const data: ApiResponse<AuthResponse> = await response.json();
-
-      if (data.success && data.data) {
-        // Store tokens
-        localStorage.setItem('accessToken', data.data.accessToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-
-        onSuccess?.(data.data);
+      if (response.success && response.data) {
+        console.log('Login successful, redirecting to dashboard');
+        onSuccess?.(response.data);
         router.push('/dashboard');
       } else {
-        setError(data.error || 'Login failed');
+        console.log('Login failed:', response.error);
+        setError(response.error || 'Login failed');
       }
     } catch (error) {
+      console.error('Login error:', error);
       setError('Network error. Please try again.');
     } finally {
       setIsLoading(false);

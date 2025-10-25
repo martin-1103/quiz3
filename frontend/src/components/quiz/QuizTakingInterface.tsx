@@ -6,7 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { SecurityProvider } from '@/components/security/SecurityProvider';
 import { Clock, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
-import { SecurityEventType } from '@/types';
+// Define SecurityEventType locally to avoid import issues
+type SecurityEventType = 
+  | 'COPY_ATTEMPT'
+  | 'PASTE_ATTEMPT'
+  | 'RIGHT_CLICK'
+  | 'TAB_SWITCH'
+  | 'SCREENSHOT_ATTEMPT'
+  | 'DEV_TOOLS_OPEN'
+  | 'KEYBOARD_SHORTCUT'
+  | 'FULLSCREEN_EXIT'
+  | 'FOCUS_LOST';
 
 interface Question {
   id: string;
@@ -36,7 +46,7 @@ interface QuizSession {
 
 interface QuizTakingInterfaceProps {
   sessionToken: string;
-  onComplete: () => void;
+  onComplete: (answers: any) => void;
   enableSecurity?: boolean;
 }
 
@@ -93,7 +103,7 @@ export function QuizTakingInterface({
   const handleSecurityEvent = useCallback((eventType: SecurityEventType, data?: any) => {
     console.log('Security event detected:', eventType, data);
     // You can implement additional security actions here
-    if (eventType === SecurityEventType.DEV_TOOLS_DETECTED) {
+    if (eventType === 'DEV_TOOLS_OPEN') {
       // Could implement more strict actions like ending the quiz
     }
   }, []);
@@ -178,7 +188,7 @@ export function QuizTakingInterface({
       });
 
       if (completeResponse.ok) {
-        onComplete();
+        onComplete(answers);
       }
     } catch (error) {
       console.error('Failed to submit quiz:', error);
